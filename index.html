@@ -43,7 +43,7 @@ const cn='零一二三四五六七八九';
 function clock(t){const m=300+10*t,h=Math.floor(m/60),mm=m%60;let s=cn[h]+'点';if(mm===0)return t?s+'整':s;return s+(mm===10?'十':cn[Math.floor(mm/10)]+'十')+'分';}
 let g;
 const key=(x,y)=>x+','+y;
-function reset(){g={x:GX,y:H,foot:{},body:{},arm:{},t:0,douUp:false,douSaw:false,layAt:null,lying:false,over:false};
+function reset(){g={x:GX,y:H,foot:{},body:{},arm:{},t:0,douUp:false,douSaw:false,layAt:null,lying:false,over:false,douGo:null,douWent:false,small:{},smallT:-1,douCopy:false};
   document.getElementById('log').innerHTML='';document.getElementById('now').innerHTML='';document.getElementById('end').style.display='none';draw();}
 function say(s,cls){if(!cls){const n=document.getElementById('now');const e=document.createElement('div');e.textContent=s;n.appendChild(e);}const d=document.createElement('div');if(cls)d.className=cls;d.textContent=s;const L=document.getElementById('log');L.appendChild(d);L.scrollTop=L.scrollHeight;}
 function snow(){for(const d of [g.foot,g.body,g.arm])for(const k in d){d[k]--;if(d[k]<=0)delete d[k];}}
@@ -62,11 +62,11 @@ function act(a){
   if(a==='躺'){if(inBooth()){say('岗亭里只有一张折叠床，豆豆睡着。');return true;}
     g.body[key(g.x,g.y)]=BODY;delete g.foot[key(g.x,g.y)];g.layAt=key(g.x,g.y);
     say('你往后一仰，躺下了。雪往脸上落。"哎哟。"');
-    if(g.douUp){g.douSaw=true;say('岗亭窗户上那张小脸贴扁了。');}return true;}
+    if(g.douUp){g.douSaw=true;say('岗亭窗户上那张小脸贴扁了。');if(g.douGo===null)g.douGo=g.t+2;}return true;}
   if(a==='扒拉'){if(just!==key(g.x,g.y)){say('你站着扒拉了两下，扒拉了一手雪。');return true;}
     const again=[-1,1].some(dx=>g.arm[key(g.x+dx,g.y)]);
     for(const dx of [-1,1]){const x=g.x+dx;if(x>=0&&x<W){g.arm[key(x,g.y)]=ARM;delete g.foot[key(x,g.y)];}}
-    g.body[key(g.x,g.y)]=BODY;g.layAt=key(g.x,g.y);say(again?'又扒拉了几下，胳膊那两道压得更深了，身底下也重新压实了。':'胳膊腿在雪里扒拉了两下。"哎哟我的妈。"');return true;}
+    g.body[key(g.x,g.y)]=BODY;g.layAt=key(g.x,g.y);say(again?'又扒拉了几下，胳膊那两道压得更深了，身底下也重新压实了。':'胳膊腿在雪里扒拉了两下。"哎哟我的妈。"');if(g.douUp&&!g.douWent)g.douCopy=true;return true;}
   if(a==='等'){const i=g.t%3;if(inBooth())say(['你揣着手在岗亭里坐着，看雪。','暖壶里倒出半缸子热水，你吹了吹。','你隔着玻璃看操场，雪一层一层地落。'][i]);
     else if(g.body[key(g.x,g.y)]){g.layAt=key(g.x,g.y);say(['你接着躺着，雪落在睫毛上。','你躺着，听见远处有辆车碾过雪。','你躺着没动，天比刚才亮了一点。'][i]);}
     else say(['你在操场里站着，雪落在帽子上。','你站着跺了跺脚。','你站着，哈出一口白气。'][i]);return true;}
@@ -76,23 +76,43 @@ function step(a){if(g.over)return;document.getElementById('now').innerHTML='';
   const ok=act(a);if(ok===false){L.removeChild(head);draw();return;}
   g.lying=(a==='躺'||a==='扒拉'||(a==='等'&&!!g.body[key(g.x,g.y)]));
   g.t++;snow();
+  if(g.douGo!==null&&g.t>=g.douGo&&!g.douWent)douTrip();
+  for(const k in g.small){if(g.t>g.smallT)g.small[k]--;if(g.small[k]<=0)delete g.small[k];}
   if(g.t===5&&!g.douUp){g.douUp=true;say('岗亭窗户上贴了个小脸，豆豆醒了。');}
   draw();if(g.t>=TICKS)end();}
+function douTrip(){g.douWent=true;const pt=k=>k.split(',').map(Number);
+  const shape=new Set([...Object.keys(g.body),...Object.keys(g.arm)]);const door=key(GX,H-1);const me=key(g.x,g.y);
+  const spots=[];for(const b in g.body){const [bx,by]=pt(b);for(const [dx,dy] of [[0,1],[-1,0],[1,0],[0,-1]]){const nx=bx+dx,ny=by+dy,n=key(nx,ny);if(nx>=0&&nx<W&&ny>=0&&ny<H&&!shape.has(n)&&n!==me)spots.push(n);}}
+  if(!spots.length)return;
+  const dist={},prev={};dist[door]=0;const done=new Set();
+  while(true){let u=null,best=1e9;for(const k in dist)if(!done.has(k)&&dist[k]<best){best=dist[k];u=k;}if(u===null)break;done.add(u);const [ux,uy]=pt(u);
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=ux+dx,ny=uy+dy,n=key(nx,ny);if(nx<0||nx>=W||ny<0||ny>=H||shape.has(n))continue;const nc=best+(g.foot[n]?1:3);if(dist[n]===undefined||nc<dist[n]){dist[n]=nc;prev[n]=u;}}}
+  const ok=spots.filter(k=>dist[k]!==undefined);if(!ok.length)return;
+  let tgt=ok[0];for(const k of ok)if(dist[k]<dist[tgt])tgt=k;
+  const path=[tgt];while(path[path.length-1]!==door)path.push(prev[path[path.length-1]]);
+  const stepped=path.filter(k=>g.foot[k]).length;
+  for(const k of path)if(k!==tgt)g.foot[k]=FOOT;
+  g.small[tgt]=6;g.smallT=g.t;
+  const how=stepped*2>=path.length?'一步一步踩着你的脚印':'咯吱咯吱';
+  say('岗亭门吱一声，豆豆跑出来了，'+how+(g.lying?'跑到你边上，挨着你也躺下了。':'跑到你躺过的那个人形边上，也躺下了。'));
+  say('"哎哟我的妈。"'+(g.douCopy?'他也扒拉了两下。':''));
+  say('躺了一会儿，他爬起来，原路跑回岗亭去了。');}
 function draw(){
   const F=document.getElementById('field');F.innerHTML='';
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){const d=document.createElement('div');d.className='c';const k=key(x,y);let ch='';
     if(x===g.x&&y===g.y){d.classList.add('me');ch='你';}
     else if(g.body[k])ch=g.body[k]>=3?'人':'亻';
+    else if(g.small[k])ch=g.small[k]>=3?'小':'彡';
     else if(g.arm[k])ch=g.arm[k]>=3?'一':'﹏';
     else if(g.foot[k])ch=g.foot[k]>=3?'∴':'·';
-    if(!(x===g.x&&y===g.y)){const v=g.body[k]||g.arm[k]||g.foot[k]||0;d.style.color=v>=3?'#445':'#aab';}
+    if(!(x===g.x&&y===g.y)){const v=g.body[k]||g.small[k]||g.arm[k]||g.foot[k]||0;d.style.color=v>=3?'#445':'#aab';}
     d.textContent=ch;F.appendChild(d);}
   const G=document.getElementById('gate');G.innerHTML='';
   for(let x=0;x<W;x++){const d=document.createElement('div');if(x===GX){d.className='booth'+(inBooth()?' me':'');d.textContent=inBooth()?'你（岗亭）':'岗亭';}G.appendChild(d);}
   document.getElementById('clock').textContent=g.t>=TICKS?'七点整':'现在'+clock(g.t)+'，还有 '+(TICKS-g.t)+' 下到七点';
 }
-function pathToDoor(){const seen=new Set(Object.keys(g.foot));const shape=new Set([...Object.keys(g.body),...Object.keys(g.arm)]);
-  const door=key(GX,H-1);if(shape.has(door))return true;
+function pathToDoor(){const seen=new Set(Object.keys(g.foot));const shape=new Set([...Object.keys(g.body),...Object.keys(g.arm),...Object.keys(g.small)]);
+  const door=key(GX,H-1);if(shape.has(door))return 'shape';
   const pt=k=>k.split(',').map(Number);
   let todo=[...seen].filter(k=>{const [a,b]=pt(k);return [...shape].some(s=>{const [c,d]=pt(s);return Math.abs(a-c)+Math.abs(b-d)<=1;});});
   const got=new Set(todo);
@@ -105,13 +125,16 @@ function end(){g.over=true;const o=['—— 七点。学生来了。'];const her
   if(!shapes){o.push(feet?'操场上剩几个浅脚印，没人多看，书包一甩就进楼了。':'操场上平平的，一个印子都没有。学生踩上去，咯吱咯吱，一会儿就踩花了。');
     if(g.everLay)o.push('你躺过的地方，雪早把它填平了。只有你知道。');show(o);return;}
   const faint=Object.values(g.body).every(v=>v<3);
-  o.push('一群人围在操场当中，雪地上'+(shapes===1?'一个人形':shapes+' 个人形')+(Object.keys(g.arm).length?'，张着胳膊':'')+(faint?'，淡得快看不出来了':'')+'。');
-  if(!here){o.push('学生看看人形，看看你："王爷爷，是你躺的吧！"');o.push(g.lying?'你躺着没动："雪地里凉快。"':'你拍拍身上的雪："扫雪扫的。"');if(g.douSaw)o.push('豆豆在窗户后头捂着嘴笑。');show(o);return;}
-  if(here&&pathToDoor()){o.push('有人看见了脚印，一路找到门口："这脚印是从岗亭出来的！"');o.push('一群人扭头看你。你揣着手："看什么看，扫雪扫的。"');
-    o.push(g.douSaw?'豆豆在窗户后头捂着嘴笑。':'豆豆从岗亭里钻出来，看看人形，看看你，"爷爷，你躺的？"');show(o);return;}
+  const sm=Object.keys(g.small).length;
+  o.push('一群人围在操场当中，雪地上'+(sm?(shapes===1?'一大一小两个人形':shapes+' 个大人形，边上还挨着一个小的'):(shapes===1?'一个人形':shapes+' 个人形'))+(Object.keys(g.arm).length?'，张着胳膊':'')+(faint?'，淡得快看不出来了':'')+'。');
+  if(!here){o.push('学生看看人形，看看你："王爷爷，是你躺的吧！"');o.push(g.lying?'你躺着没动："雪地里凉快。"':'你拍拍身上的雪："扫雪扫的。"');if(sm)o.push('"那个小的呢？"豆豆在窗户后头一下缩没了。');else if(g.douSaw)o.push('豆豆在窗户后头捂着嘴笑。');show(o);return;}
+  const ptd=pathToDoor();
+  if(ptd){o.push(ptd==='shape'?'有人看出来了，人形的脚就冲着岗亭门："就是从岗亭出来躺的！"':'有人看见了脚印，一路找到门口："这脚印是从岗亭出来的！"');o.push('一群人扭头看你。你揣着手："看什么看，扫雪扫的。"');
+    o.push(sm?'"那小的呢？"豆豆躲到你身后去了。':g.douSaw?'豆豆在窗户后头捂着嘴笑。':'豆豆从岗亭里钻出来，看看人形，看看你，"爷爷，你躺的？"');show(o);return;}
   o.push(feet?'人形边上还有几个脚印，连不到哪儿去，半截就没了。"他飞走了？"':'四周一个脚印都没有。有人说是外星人，有人说是体育老师。小吴老师拿手机拍了。');
+  if(sm)o.push('有人说是外星人带着孩子来的。');
   o.push('你站在大门口，揣着手，骂："谁这么缺德，大清早的。"');
-  o.push(g.douSaw?'骂完你看了豆豆一眼。豆豆没说。':'豆豆也挤在学生堆里，扭头问你："爷爷，是外星人吗？"');show(o);}
+  o.push(sm?'豆豆站在你旁边，也揣着手，也骂："谁这么缺德。"':g.douSaw?'骂完你看了豆豆一眼。豆豆没说。':'豆豆也挤在学生堆里，扭头问你："爷爷，是外星人吗？"');show(o);}
 function show(o){const E=document.getElementById('end');E.innerHTML='';for(const s of o){const d=document.createElement('div');d.textContent=s;E.appendChild(d);}
   const b=document.createElement('button');b.id='again';b.textContent='再来一回';b.onclick=reset;E.appendChild(b);E.style.display='block';document.getElementById('now').innerHTML='';window.scrollTo({top:0,behavior:'smooth'});}
 document.querySelectorAll('#btns button[data-a]').forEach(b=>b.onclick=()=>{if(b.dataset.a==='躺')g.everLay=true;step(b.dataset.a);});
