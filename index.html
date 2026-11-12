@@ -7,9 +7,10 @@ body{font-family:"PingFang SC","Noto Sans SC",sans-serif;background:#2a2f38;colo
 h1{font-size:20px;font-weight:normal;margin:4px 0 8px;color:#fff}
 #top{color:#aab;font-size:14px;margin-bottom:8px;line-height:1.6}
 #clock{font-size:18px;color:#fff;margin:6px 0}
-#field{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;background:#9aa4b0;padding:4px;border-radius:4px}
-.c{aspect-ratio:1;background:#f4f6f8;display:flex;align-items:center;justify-content:center;font-size:24px;color:#556;transition:background .6s}
-.c.me{background:#ffe9b0}
+#now{min-height:52px;font-size:16px;line-height:1.6;color:#f3e6c8;margin:4px 0 8px}
+#field{display:grid;grid-template-columns:repeat(7,1fr);gap:0;background:#f4f6f8;padding:6px;border-radius:6px;box-shadow:inset 0 0 18px #c9d2dc}
+.c{aspect-ratio:1;background:transparent;display:flex;align-items:center;justify-content:center;font-size:24px;color:#556;transition:background .6s}
+.c.me{background:#ffe9b0;border-radius:50%}
 #gate{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:0 4px}
 #gate div{height:34px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#ccd}
 #gate .booth{background:#6b5a48;color:#fff;border-radius:0 0 6px 6px}
@@ -19,13 +20,15 @@ button{font-size:17px;padding:10px 0;border:0;border-radius:6px;background:#4a55
 button:active{background:#66758c}
 #log{background:#20242b;border-radius:6px;padding:10px;font-size:15px;line-height:1.7;min-height:120px;max-height:260px;overflow-y:auto}
 #log .t{color:#8a94a6}
-#end{display:none;background:#1b1e24;border-radius:6px;padding:12px;font-size:16px;line-height:1.8;margin-top:10px}
+#end{display:none;background:#1b1e24;border-radius:6px;padding:12px;font-size:16px;line-height:1.8;margin:0 0 10px}
 #again{margin-top:8px;width:100%}
 .dim{opacity:.55}
 </style></head><body><div id="w">
 <h1>人形</h1>
 <div id="top">腊月头一场雪。五点，你开了学校大门，操场上白的，一个脚印都没有。七点学生来。雪还在下。豆豆睡在岗亭里。</div>
 <div id="clock"></div>
+<div id="now"></div>
+<div id="end"></div>
 <div id="field"></div>
 <div id="gate"></div>
 <div id="btns">
@@ -33,7 +36,6 @@ button:active{background:#66758c}
 <button data-a="躺">躺</button><button data-a="扒拉">扒拉</button><button data-a="等">等</button><button id="noop" disabled class="dim">每下十分钟</button>
 </div>
 <div id="log"></div>
-<div id="end"></div>
 </div>
 <script>
 const W=7,H=5,GX=3,TICKS=12,FOOT=4,BODY=9,ARM=7;
@@ -42,8 +44,8 @@ function clock(t){const m=300+10*t,h=Math.floor(m/60),mm=m%60;let s=cn[h]+'点';
 let g;
 const key=(x,y)=>x+','+y;
 function reset(){g={x:GX,y:H,foot:{},body:{},arm:{},t:0,douUp:false,douSaw:false,layAt:null,lying:false,over:false};
-  document.getElementById('log').innerHTML='';document.getElementById('end').style.display='none';draw();}
-function say(s,cls){const d=document.createElement('div');if(cls)d.className=cls;d.textContent=s;const L=document.getElementById('log');L.appendChild(d);L.scrollTop=L.scrollHeight;}
+  document.getElementById('log').innerHTML='';document.getElementById('now').innerHTML='';document.getElementById('end').style.display='none';draw();}
+function say(s,cls){if(!cls){const n=document.getElementById('now');const e=document.createElement('div');e.textContent=s;n.appendChild(e);}const d=document.createElement('div');if(cls)d.className=cls;d.textContent=s;const L=document.getElementById('log');L.appendChild(d);L.scrollTop=L.scrollHeight;}
 function snow(){for(const d of [g.foot,g.body,g.arm])for(const k in d){d[k]--;if(d[k]<=0)delete d[k];}}
 const inBooth=()=>g.y===H;
 function act(a){
@@ -69,7 +71,7 @@ function act(a){
     else if(g.body[key(g.x,g.y)]){g.layAt=key(g.x,g.y);say(['你接着躺着，雪落在睫毛上。','你躺着，听见远处有辆车碾过雪。','你躺着没动，天比刚才亮了一点。'][i]);}
     else say(['你在操场里站着，雪落在帽子上。','你站着跺了跺脚。','你站着，哈出一口白气。'][i]);return true;}
 }
-function step(a){if(g.over)return;
+function step(a){if(g.over)return;document.getElementById('now').innerHTML='';
   const L=document.getElementById('log');const head=document.createElement('div');head.className='t';head.textContent='—— '+clock(g.t)+'。';L.appendChild(head);
   const ok=act(a);if(ok===false){L.removeChild(head);draw();return;}
   g.lying=(a==='躺'||a==='扒拉'||(a==='等'&&!!g.body[key(g.x,g.y)]));
@@ -111,7 +113,7 @@ function end(){g.over=true;const o=['—— 七点。学生来了。'];const her
   o.push('你站在大门口，揣着手，骂："谁这么缺德，大清早的。"');
   o.push(g.douSaw?'骂完你看了豆豆一眼。豆豆没说。':'豆豆也挤在学生堆里，扭头问你："爷爷，是外星人吗？"');show(o);}
 function show(o){const E=document.getElementById('end');E.innerHTML='';for(const s of o){const d=document.createElement('div');d.textContent=s;E.appendChild(d);}
-  const b=document.createElement('button');b.id='again';b.textContent='再来一回';b.onclick=reset;E.appendChild(b);E.style.display='block';E.scrollIntoView({behavior:'smooth'});}
+  const b=document.createElement('button');b.id='again';b.textContent='再来一回';b.onclick=reset;E.appendChild(b);E.style.display='block';document.getElementById('now').innerHTML='';window.scrollTo({top:0,behavior:'smooth'});}
 document.querySelectorAll('#btns button[data-a]').forEach(b=>b.onclick=()=>{if(b.dataset.a==='躺')g.everLay=true;step(b.dataset.a);});
 document.addEventListener('keydown',e=>{const m={ArrowUp:'上',ArrowDown:'下',ArrowLeft:'左',ArrowRight:'右',' ':'等'};if(m[e.key]){e.preventDefault();step(m[e.key]);}});
 reset();
