@@ -62,11 +62,12 @@ function act(a){
     say('你往后一仰，躺下了。雪往脸上落。"哎哟。"');
     if(g.douUp){g.douSaw=true;say('岗亭窗户上那张小脸贴扁了。');}return true;}
   if(a==='扒拉'){if(just!==key(g.x,g.y)){say('你站着扒拉了两下，扒拉了一手雪。');return true;}
+    const again=[-1,1].some(dx=>g.arm[key(g.x+dx,g.y)]);
     for(const dx of [-1,1]){const x=g.x+dx;if(x>=0&&x<W){g.arm[key(x,g.y)]=ARM;delete g.foot[key(x,g.y)];}}
-    g.layAt=key(g.x,g.y);say('胳膊腿在雪里扒拉了两下。"哎哟我的妈。"');return true;}
-  if(a==='等'){if(inBooth())say('你揣着手在岗亭里坐着，看雪。');
-    else if(g.body[key(g.x,g.y)]){g.layAt=key(g.x,g.y);say('你接着躺着，雪落在睫毛上。');}
-    else say('你在操场里站着，雪落在帽子上。');return true;}
+    g.body[key(g.x,g.y)]=BODY;g.layAt=key(g.x,g.y);say(again?'又扒拉了几下，胳膊那两道压得更深了，身底下也重新压实了。':'胳膊腿在雪里扒拉了两下。"哎哟我的妈。"');return true;}
+  if(a==='等'){const i=g.t%3;if(inBooth())say(['你揣着手在岗亭里坐着，看雪。','暖壶里倒出半缸子热水，你吹了吹。','你隔着玻璃看操场，雪一层一层地落。'][i]);
+    else if(g.body[key(g.x,g.y)]){g.layAt=key(g.x,g.y);say(['你接着躺着，雪落在睫毛上。','你躺着，听见远处有辆车碾过雪。','你躺着没动，天比刚才亮了一点。'][i]);}
+    else say(['你在操场里站着，雪落在帽子上。','你站着跺了跺脚。','你站着，哈出一口白气。'][i]);return true;}
 }
 function step(a){if(g.over)return;
   const L=document.getElementById('log');const head=document.createElement('div');head.className='t';head.textContent='—— '+clock(g.t)+'。';L.appendChild(head);
@@ -103,10 +104,10 @@ function end(){g.over=true;const o=['—— 七点。学生来了。'];const her
     if(g.everLay)o.push('你躺过的地方，雪早把它填平了。只有你知道。');show(o);return;}
   const faint=Object.values(g.body).every(v=>v<3);
   o.push('一群人围在操场当中，雪地上'+(shapes===1?'一个人形':shapes+' 个人形')+(Object.keys(g.arm).length?'，张着胳膊':'')+(faint?'，淡得快看不出来了':'')+'。');
+  if(!here){o.push('学生看看人形，看看你："王爷爷，是你躺的吧！"');o.push(g.lying?'你躺着没动："雪地里凉快。"':'你拍拍身上的雪："扫雪扫的。"');if(g.douSaw)o.push('豆豆在窗户后头捂着嘴笑。');show(o);return;}
   if(here&&pathToDoor()){o.push('有人看见了脚印，一路找到门口："这脚印是从岗亭出来的！"');o.push('一群人扭头看你。你揣着手："看什么看，扫雪扫的。"');
     o.push(g.douSaw?'豆豆在窗户后头捂着嘴笑。':'豆豆从岗亭里钻出来，看看人形，看看你，"爷爷，你躺的？"');show(o);return;}
   o.push(feet?'人形边上还有几个脚印，连不到哪儿去，半截就没了。"他飞走了？"':'四周一个脚印都没有。有人说是外星人，有人说是体育老师。小吴老师拿手机拍了。');
-  if(!here){o.push('学生看看人形，看看你。');show(o);return;}
   o.push('你站在大门口，揣着手，骂："谁这么缺德，大清早的。"');
   o.push(g.douSaw?'骂完你看了豆豆一眼。豆豆没说。':'豆豆也挤在学生堆里，扭头问你："爷爷，是外星人吗？"');show(o);}
 function show(o){const E=document.getElementById('end');E.innerHTML='';for(const s of o){const d=document.createElement('div');d.textContent=s;E.appendChild(d);}
