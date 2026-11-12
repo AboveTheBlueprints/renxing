@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>人形</title>
+<style>
+body{font-family:"PingFang SC","Noto Sans SC",sans-serif;background:#2a2f38;color:#e8e8e8;margin:0;display:flex;justify-content:center}
+#w{max-width:520px;width:100%;padding:16px}
+h1{font-size:20px;font-weight:normal;margin:4px 0 8px;color:#fff}
+#top{color:#aab;font-size:14px;margin-bottom:8px;line-height:1.6}
+#clock{font-size:18px;color:#fff;margin:6px 0}
+#field{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;background:#9aa4b0;padding:4px;border-radius:4px}
+.c{aspect-ratio:1;background:#f4f6f8;display:flex;align-items:center;justify-content:center;font-size:24px;color:#556;transition:background .6s}
+.c.me{background:#ffe9b0}
+#gate{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:0 4px}
+#gate div{height:34px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#ccd}
+#gate .booth{background:#6b5a48;color:#fff;border-radius:0 0 6px 6px}
+#gate .booth.me{background:#c79a52}
+#btns{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:12px 0}
+button{font-size:17px;padding:10px 0;border:0;border-radius:6px;background:#4a5566;color:#fff;cursor:pointer}
+button:active{background:#66758c}
+#log{background:#20242b;border-radius:6px;padding:10px;font-size:15px;line-height:1.7;min-height:120px;max-height:260px;overflow-y:auto}
+#log .t{color:#8a94a6}
+#end{display:none;background:#1b1e24;border-radius:6px;padding:12px;font-size:16px;line-height:1.8;margin-top:10px}
+#again{margin-top:8px;width:100%}
+.dim{opacity:.55}
+</style></head><body><div id="w">
+<h1>人形</h1>
+<div id="top">腊月头一场雪。五点，你开了学校大门，操场上白的，一个脚印都没有。七点学生来。雪还在下。豆豆睡在岗亭里。</div>
+<div id="clock"></div>
+<div id="field"></div>
+<div id="gate"></div>
+<div id="btns">
+<button data-a="上">上</button><button data-a="左">左</button><button data-a="右">右</button><button data-a="下">下</button>
+<button data-a="躺">躺</button><button data-a="扒拉">扒拉</button><button data-a="等">等</button><button id="noop" disabled class="dim">每下十分钟</button>
+</div>
+<div id="log"></div>
+<div id="end"></div>
+</div>
+<script>
+const W=7,H=5,GX=3,TICKS=12,FOOT=4,BODY=9,ARM=7;
+const cn='零一二三四五六七八九';
+function clock(t){const m=300+10*t,h=Math.floor(m/60),mm=m%60;let s=cn[h]+'点';if(mm===0)return t?s+'整':s;return s+(mm===10?'十':cn[Math.floor(mm/10)]+'十')+'分';}
+let g;
+const key=(x,y)=>x+','+y;
+function reset(){g={x:GX,y:H,foot:{},body:{},arm:{},t:0,douUp:false,douSaw:false,layAt:null,lying:false,over:false};
+  document.getElementById('log').innerHTML='';document.getElementById('end').style.display='none';draw();}
+function say(s,cls){const d=document.createElement('div');if(cls)d.className=cls;d.textContent=s;const L=document.getElementById('log');L.appendChild(d);L.scrollTop=L.scrollHeight;}
+function snow(){for(const d of [g.foot,g.body,g.arm])for(const k in d){d[k]--;if(d[k]<=0)delete d[k];}}
+const inBooth=()=>g.y===H;
+function act(a){
+  const just=g.layAt;g.layAt=null;
+  const dirs={'上':[0,-1],'下':[0,1],'左':[-1,0],'右':[1,0]};
+  if(dirs[a]){const [dx,dy]=dirs[a];let nx=g.x+dx,ny=g.y+dy;
+    if(inBooth()){if(a!=='上'){say('岗亭里转不开身。（没花时间）');return false;}nx=GX;ny=H-1;}
+    else if(ny===H){if(g.x!==GX){say('那边是墙，门在正当中。（没花时间）');return false;}g.x=GX;g.y=H;say('你回到岗亭里，跺了跺鞋上的雪。');return true;}
+    if(nx<0||nx>=W||ny<0||ny>=H){say('那边是墙。（没花时间）');return false;}
+    g.x=nx;g.y=ny;
+    if(g.body[key(nx,ny)])say('你踩进自己躺过的那个窝里，脚底下软软的。');
+    else{g.foot[key(nx,ny)]=FOOT;say('咯吱一声，一个脚印。');}
+    return true;}
+  if(a==='躺'){if(inBooth()){say('岗亭里只有一张折叠床，豆豆睡着。');return true;}
+    g.body[key(g.x,g.y)]=BODY;delete g.foot[key(g.x,g.y)];g.layAt=key(g.x,g.y);
+    say('你往后一仰，躺下了。雪往脸上落。"哎哟。"');
+    if(g.douUp){g.douSaw=true;say('岗亭窗户上那张小脸贴扁了。');}return true;}
+  if(a==='扒拉'){if(just!==key(g.x,g.y)){say('你站着扒拉了两下，扒拉了一手雪。');return true;}
+    for(const dx of [-1,1]){const x=g.x+dx;if(x>=0&&x<W){g.arm[key(x,g.y)]=ARM;delete g.foot[key(x,g.y)];}}
+    g.layAt=key(g.x,g.y);say('胳膊腿在雪里扒拉了两下。"哎哟我的妈。"');return true;}
+  if(a==='等'){if(inBooth())say('你揣着手在岗亭里坐着，看雪。');
+    else if(g.body[key(g.x,g.y)]){g.layAt=key(g.x,g.y);say('你接着躺着，雪落在睫毛上。');}
+    else say('你在操场里站着，雪落在帽子上。');return true;}
+}
+function step(a){if(g.over)return;
+  const L=document.getElementById('log');const head=document.createElement('div');head.className='t';head.textContent='—— '+clock(g.t)+'。';L.appendChild(head);
+  const ok=act(a);if(ok===false){L.removeChild(head);draw();return;}
+  g.lying=(a==='躺'||a==='扒拉'||(a==='等'&&!!g.body[key(g.x,g.y)]));
+  g.t++;snow();
+  if(g.t===5&&!g.douUp){g.douUp=true;say('岗亭窗户上贴了个小脸，豆豆醒了。');}
+  draw();if(g.t>=TICKS)end();}
+function draw(){
+  const F=document.getElementById('field');F.innerHTML='';
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){const d=document.createElement('div');d.className='c';const k=key(x,y);let ch='';
+    if(x===g.x&&y===g.y){d.classList.add('me');ch='你';}
+    else if(g.body[k])ch=g.body[k]>=3?'人':'亻';
+    else if(g.arm[k])ch=g.arm[k]>=3?'一':'﹏';
+    else if(g.foot[k])ch=g.foot[k]>=3?'∴':'·';
+    if(!(x===g.x&&y===g.y)){const v=g.body[k]||g.arm[k]||g.foot[k]||0;d.style.color=v>=3?'#445':'#aab';}
+    d.textContent=ch;F.appendChild(d);}
+  const G=document.getElementById('gate');G.innerHTML='';
+  for(let x=0;x<W;x++){const d=document.createElement('div');if(x===GX){d.className='booth'+(inBooth()?' me':'');d.textContent=inBooth()?'你（岗亭）':'岗亭';}G.appendChild(d);}
+  document.getElementById('clock').textContent=g.t>=TICKS?'七点整':'现在'+clock(g.t)+'，还有 '+(TICKS-g.t)+' 下到七点';
+}
+function pathToDoor(){const seen=new Set(Object.keys(g.foot));const shape=new Set([...Object.keys(g.body),...Object.keys(g.arm)]);
+  const door=key(GX,H-1);if(shape.has(door))return true;
+  const pt=k=>k.split(',').map(Number);
+  let todo=[...seen].filter(k=>{const [a,b]=pt(k);return [...shape].some(s=>{const [c,d]=pt(s);return Math.abs(a-c)+Math.abs(b-d)<=1;});});
+  const got=new Set(todo);
+  while(todo.length){const c=todo.pop();if(c===door)return true;const [a,b]=pt(c);
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const n=key(a+dx,b+dy);if(seen.has(n)&&!got.has(n)){got.add(n);todo.push(n);}}}
+  return false;}
+function end(){g.over=true;const o=['—— 七点。学生来了。'];const here=inBooth();
+  if(!here)o.push(g.lying?'你还躺在雪里。学生一进门就看见你："王爷爷，你干啥呢？"':'你还站在操场里。学生一进门就看见你："王爷爷，你干啥呢？"');
+  const shapes=Object.keys(g.body).length,feet=Object.keys(g.foot).length;
+  if(!shapes){o.push(feet?'操场上剩几个浅脚印，没人多看，书包一甩就进楼了。':'操场上平平的，一个印子都没有。学生踩上去，咯吱咯吱，一会儿就踩花了。');
+    if(g.everLay)o.push('你躺过的地方，雪早把它填平了。只有你知道。');show(o);return;}
+  const faint=Object.values(g.body).every(v=>v<3);
+  o.push('一群人围在操场当中，雪地上'+(shapes===1?'一个人形':shapes+' 个人形')+(Object.keys(g.arm).length?'，张着胳膊':'')+(faint?'，淡得快看不出来了':'')+'。');
+  if(here&&pathToDoor()){o.push('有人看见了脚印，一路找到门口："这脚印是从岗亭出来的！"');o.push('一群人扭头看你。你揣着手："看什么看，扫雪扫的。"');
+    o.push(g.douSaw?'豆豆在窗户后头捂着嘴笑。':'豆豆从岗亭里钻出来，看看人形，看看你，"爷爷，你躺的？"');show(o);return;}
+  o.push(feet?'人形边上还有几个脚印，连不到哪儿去，半截就没了。"他飞走了？"':'四周一个脚印都没有。有人说是外星人，有人说是体育老师。小吴老师拿手机拍了。');
+  if(!here){o.push('学生看看人形，看看你。');show(o);return;}
+  o.push('你站在大门口，揣着手，骂："谁这么缺德，大清早的。"');
+  o.push(g.douSaw?'骂完你看了豆豆一眼。豆豆没说。':'豆豆也挤在学生堆里，扭头问你："爷爷，是外星人吗？"');show(o);}
+function show(o){const E=document.getElementById('end');E.innerHTML='';for(const s of o){const d=document.createElement('div');d.textContent=s;E.appendChild(d);}
+  const b=document.createElement('button');b.id='again';b.textContent='再来一回';b.onclick=reset;E.appendChild(b);E.style.display='block';E.scrollIntoView({behavior:'smooth'});}
+document.querySelectorAll('#btns button[data-a]').forEach(b=>b.onclick=()=>{if(b.dataset.a==='躺')g.everLay=true;step(b.dataset.a);});
+document.addEventListener('keydown',e=>{const m={ArrowUp:'上',ArrowDown:'下',ArrowLeft:'左',ArrowRight:'右',' ':'等'};if(m[e.key]){e.preventDefault();step(m[e.key]);}});
+reset();
+</script></body></html>
